@@ -1,0 +1,83 @@
+import { useContext, useEffect, useRef, useState } from "react";
+import AppContext from "../../../features/context/AppContext";
+import Base64 from "../../../shared/base64/Base64";
+
+export default function AuthModal() {
+    const { request, setToken } = useContext(AppContext);
+    const closeModalRef = useRef();
+    const modalRef = useRef();
+    const [formState, setFormState] = useState({ login: "", password: "" });
+    const [isFormValid, setFormValid] = useState(false);
+    const [error, setError] = useState(false);
+
+    const authenticate = () => {
+        const credentials = Base64.encode(`${formState.login}:${formState.password}`);
+        request("/user/login", {
+            method: "GET",
+            headers: { Authorization: "Basic " + credentials }
+        })
+        .then(data => {
+            setToken(data);
+            setError(false);
+            closeModalRef.current.click();
+        })
+        .catch(() => setError("Вхід скасовано"));
+    };
+
+    const onModalClose = () => {
+        setFormState({ login: "", password: "" });
+        setError(false);
+    };
+
+    useEffect(() => {
+        setFormValid(formState.login.length > 2 && formState.password.length > 2);
+    }, [formState]);
+
+    useEffect(() => {
+        const modal = modalRef.current;
+        modal.addEventListener("hide.bs.modal", onModalClose);
+        return () => {
+            if (modal) modal.removeEventListener("hide.bs.modal", onModalClose);
+        };
+    }, []);
+
+    return (
+        <div ref={modalRef} className="modal fade" id="authModal" tabIndex="-1" aria-labelledby="authModalLabel" aria-hidden="true">
+            <div className="modal-dialog">
+                <div className="modal-content">
+                    <div className="modal-header">
+                        <h1 className="modal-title fs-5" id="authModalLabel">Вхід до сайту</h1>
+                        <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div className="modal-body">
+                        <div className="input-group mb-3">
+                            <span className="input-group-text"><i className="bi bi-key"></i></span>
+                            <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Логін"
+                                value={formState.login}
+                                onChange={e => setFormState({ ...formState, login: e.target.value })}
+                            />
+                        </div>
+                        <div className="input-group mb-3">
+                            <span className="input-group-text"><i className="bi bi-lock"></i></span>
+                            <input
+                                type="password"
+                                className="form-control"
+                                placeholder="Пароль"
+                                value={formState.password}
+                                onChange={e => setFormState({ ...formState, password: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        {error && <div className="alert alert-danger flex-grow-1 py-2" role="alert">{error}</div>}
+                        <button ref={closeModalRef} onClick={onModalClose} type="button" className="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                        <button disabled={!isFormValid} onClick={authenticate} type="button" className="btn btn-primary">Вхід</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
